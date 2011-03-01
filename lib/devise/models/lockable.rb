@@ -36,12 +36,10 @@ module Devise
 
       # Unlock a user by cleaning locket_at and failed_attempts.
       def unlock_access!
-        if_access_locked do
-          self.locked_at = nil
-          self.failed_attempts = 0 if respond_to?(:failed_attempts=)
-          self.unlock_token = nil  if respond_to?(:unlock_token=)
-          save(:validate => false)
-        end
+        self.locked_at = nil
+        self.failed_attempts = 0 if respond_to?(:failed_attempts=)
+        self.unlock_token = nil  if respond_to?(:unlock_token=)
+        save(:validate => false)
       end
 
       # Verifies whether a user is locked or not.
@@ -77,11 +75,16 @@ module Devise
       def valid_for_authentication?
         return super unless persisted? && lock_strategy_enabled?(:failed_attempts)
 
+        # Unlock the user if the lock is expired, no matter
+        # if the user can login or not (wrong password, etc)
+        unlock_access! if lock_expired?
+
         case (result = super)
         when Symbol
           return result
         when TrueClass
           self.failed_attempts = 0
+          save(:validate => false)
         when FalseClass
           # PostgreSQL uses nil as the default value for integer columns set to 0
           self.failed_attempts ||= 0
@@ -89,10 +92,11 @@ module Devise
           if attempts_exceeded?
             lock_access!
             return :locked
+          else
+            save(:validate => false)
           end
         end
 
-        save(:validate => false) if changed?
         result
       end
 

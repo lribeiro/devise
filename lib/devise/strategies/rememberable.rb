@@ -20,7 +20,7 @@ module Devise
 
         if validate(resource)
           success!(resource)
-        else
+        elsif !halted?
           cookies.delete(remember_key)
           pass
         end
@@ -28,16 +28,17 @@ module Devise
 
     private
 
+      def decorate(resource)
+        super
+        resource.extend_remember_period = mapping.to.extend_remember_period if resource.respond_to?(:extend_remember_period=)
+      end
+
       def remember_me?
         true
       end
 
       def remember_key
         "remember_#{scope}_token"
-      end
-
-      def extend_remember_period?
-        mapping.to.extend_remember_period
       end
 
       # Accessor for remember cookie

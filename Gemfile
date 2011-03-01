@@ -3,8 +3,8 @@ source "http://rubygems.org"
 gemspec
 
 gem "rails", "~> 3.0.4"
-gem "oa-oauth", :require => "omniauth/oauth"
-gem "oa-openid", :require => "omniauth/openid"
+gem "oa-oauth", '~> 0.2.0.beta1', :require => "omniauth/oauth"
+gem "oa-openid", '~> 0.2.0.beta1', :require => "omniauth/openid"
 
 group :test do
   gem "webrat", "0.7.2", :require => false
@@ -24,6 +24,6 @@ platforms :ruby do
   group :mongoid do
     gem "mongo", "1.1.2"
     gem "mongoid", "2.0.0.beta.20"
-    gem "bson_ext", "1.1.2"
+    gem "bson_ext", "1.2.1"
   end
 end

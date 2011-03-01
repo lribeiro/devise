@@ -14,6 +14,7 @@ module Devise
   module Controllers
     autoload :Helpers, 'devise/controllers/helpers'
     autoload :InternalHelpers, 'devise/controllers/internal_helpers'
+    autoload :Rememberable, 'devise/controllers/rememberable'
     autoload :ScopedViews, 'devise/controllers/scoped_views'
     autoload :UrlHelpers, 'devise/controllers/url_helpers'
   end
@@ -377,8 +378,7 @@ module Devise
 
   # constant-time comparison algorithm to prevent timing attacks
   def self.secure_compare(a, b)
-    return false unless a.present? && b.present?
-    return false unless a.bytesize == b.bytesize
+    return false if a.blank? || b.blank? || a.bytesize != b.bytesize
     l = a.unpack "C#{a.bytesize}"
 
     res = 0
