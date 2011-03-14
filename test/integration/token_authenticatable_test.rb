@@ -89,6 +89,22 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
     end
   end
 
+  test 'should not be subject to injection' do
+    swap Devise, :token_authentication_key => :secret_token do
+      user1 = create_user_with_authentication_token()
+
+      # Clean up user cache
+      @user = nil
+
+      user2 = create_user_with_authentication_token(:email => "another@test.com")
+      user2.update_attribute(:authentication_token, "ANOTHERTOKEN")
+
+      assert_not_equal user1, user2
+      visit users_path(Devise.token_authentication_key.to_s + '[$ne]' => user1.authentication_token)
+      assert_nil warden.user(:user) 
+    end
+  end
+
   private
 
     def sign_in_as_new_user_with_token(options = {})
@@ -107,7 +123,7 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
       user
     end
 
-    def create_user_with_authentication_token(options)
+    def create_user_with_authentication_token(options={})
       user = create_user(options)
       user.authentication_token = VALID_AUTHENTICATION_TOKEN
       user.save
@@ -117,4 +133,5 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
     def get_users_path_as_existing_user(user)
       sign_in_as_new_user_with_token(:user => user)
     end
+
 end

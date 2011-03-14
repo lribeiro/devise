@@ -100,6 +100,7 @@ module Devise
         #   end
         #
         def find_for_authentication(conditions)
+          filter_auth_params(conditions)
           case_insensitive_keys.each { |k| conditions[k].try(:downcase!) }
           to_adapter.find_first(conditions)
         end
@@ -117,7 +118,7 @@ module Devise
           attributes.delete_if { |key, value| value.blank? }
 
           if attributes.size == required_attributes.size
-            record = to_adapter.find_first(attributes)
+            record = to_adapter.find_first(filter_auth_params(attributes))
           end
           
           unless record
@@ -131,6 +132,15 @@ module Devise
           end
 
           record
+        end
+
+        protected
+
+        # Force keys to be string to avoid injection on mongoid related database.
+        def filter_auth_params(conditions)
+          conditions.each do |k, v|
+            conditions[k] = v.to_s
+          end
         end
 
         # Generate a token by looping and ensuring does not already exist.
