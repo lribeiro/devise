@@ -1,3 +1,7 @@
+* bug fix
+  * Properly ignore path prefix on omniauthable
+  * Faster uniqueness queries
+
 == 1.2.rc2
 
 * enhancements
