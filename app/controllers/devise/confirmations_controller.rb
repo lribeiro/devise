@@ -12,10 +12,10 @@ class Devise::ConfirmationsController < ApplicationController
     self.resource = resource_class.send_confirmation_instructions(params[resource_name])
 
     if resource.errors.empty?
-      set_flash_message :notice, :send_instructions
-      redirect_to new_session_path(resource_name)
+      set_flash_message(:notice, :send_instructions) if is_navigational_format?
+      respond_with resource, :location => after_resending_confirmation_instructions_path_for(resource_name)
     else
-      render_with_scope :new
+      respond_with_navigational(resource){ render_with_scope :new }
     end
   end
 
@@ -24,10 +24,18 @@ class Devise::ConfirmationsController < ApplicationController
     self.resource = resource_class.confirm_by_token(params[:confirmation_token])
 
     if resource.errors.empty?
-      set_flash_message :notice, :confirmed
-      sign_in_and_redirect(resource_name, resource)
+      set_flash_message(:notice, :confirmed) if is_navigational_format?
+      sign_in(resource_name, resource)
+      respond_with_navigational(resource){ redirect_to redirect_location(resource_name, resource) }
     else
-      render_with_scope :new
+      respond_with_navigational(resource.errors, :status => :unprocessable_entity){ render_with_scope :new }
     end
   end
+
+  protected
+
+    # The path used after resending confirmation instructions.
+    def after_resending_confirmation_instructions_path_for(resource_name)
+      new_session_path(resource_name)
+    end
 end

@@ -86,7 +86,7 @@ The generator will install an initializer which describes ALL Devise's configura
 
   rails generate devise MODEL
 
-Replace MODEL by the class name you want to add devise, like User, Admin, etc. This will create a model (if one does not exist) and configure it with default Devise modules. The generator will also create a migration file (if your ORM support them) and configure your routes. Continue reading this file to understand exactly what the generator produces and how to use it.
+Replace MODEL by the class name used for the applications users, it's frequently 'User' but could also be 'Admin'. This will create a model (if one does not exist) and configure it with default Devise modules. Next, you'll usually run db:migrate as the generator will have created a migration file (if your ORM supports them). This generator also configures your config/routes.rb file, continue reading this file to understand exactly what the generator produces and how to use it.
 
 Support for Rails 2.3.x can be found by installing Devise 1.0.x from the v1.0 branch.
 
@@ -152,7 +152,7 @@ You can access the session for this scope:
 
 After signing in a user, confirming the account or updating the password, Devise will look for a scoped root path to redirect. Example: For a :user resource, it will use user_root_path if it exists, otherwise default root_path will be used. This means that you need to set the root inside your routes:
 
-  root :to => "home"
+  root :to => "home#index"
 
 You can also overwrite after_sign_in_path_for and after_sign_out_path_for to customize your redirect hooks.
 
@@ -259,7 +259,7 @@ Feel free to choose the one you prefer!
 
 === I18n
 
-Devise uses flash messages with I18n with the flash keys :success and :failure. To customize your app, you can set up your locale file:
+Devise uses flash messages with I18n with the flash keys :notice and :alert. To customize your app, you can set up your locale file:
 
   en:
     devise:
@@ -315,12 +315,11 @@ If you're using RSpec and want the helpers automatically included within all +de
 
 Do not use such helpers for integration tests such as Cucumber or Webrat. Instead, fill in the form or explicitly set the user in session. For more tips, check the wiki (http://wiki.github.com/plataformatec/devise).
 
-=== OAuth2
+=== Omniauth
 
-Devise comes with OAuth support out of the box if you're using Devise from the git repository (for now). You can read more about OAuth2 support in the wiki:
+Devise comes with Omniauth support out of the box to authenticate from other providers. You can read more about Omniauth support in the wiki:
 
-* http://github.com/plataformatec/devise/wiki/OAuth2:-Overview
-* http://github.com/plataformatec/devise/wiki/OAuth2:-Testing
+* https://github.com/plataformatec/devise/wiki/OmniAuth:-Overview
 
 === Other ORMs
 

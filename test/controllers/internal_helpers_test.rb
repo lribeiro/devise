@@ -39,10 +39,18 @@ class HelpersTest < ActionController::TestCase
   end
 
   test 'require no authentication tests current mapping' do
-    @mock_warden.expects(:authenticated?).with(:user).returns(true)
+    @mock_warden.expects(:authenticate?).with(:rememberable, :token_authenticatable, :scope => :user).returns(true)
     @mock_warden.expects(:user).with(:user).returns(User.new)
     @controller.expects(:redirect_to).with(root_path)
     @controller.send :require_no_authentication
+  end
+
+  test 'require no authentication sets a flash message' do
+    @mock_warden.expects(:authenticate?).with(:rememberable, :token_authenticatable, :scope => :user).returns(true)
+    @mock_warden.expects(:user).with(:user).returns(User.new)
+    @controller.expects(:redirect_to).with(root_path)
+    @controller.send :require_no_authentication
+    assert flash[:alert] == I18n.t("devise.failure.already_authenticated")
   end
 
   test 'signed in resource returns signed in resource for current scope' do
@@ -68,5 +76,12 @@ class HelpersTest < ActionController::TestCase
     @controller.set_flash_message :notice, :send_instructions
     assert flash[:notice] == 'non-blank'
     MyController.send(:protected, :set_flash_message)
+  end
+
+  test 'navigational_formats not returning a wild card' do
+    MyController.send(:public, :navigational_formats)
+    Devise.navigational_formats = [:"*/*", :html]
+    assert_not @controller.navigational_formats.include?(:"*/*")
+    MyController.send(:protected, :navigational_formats)
   end
 end

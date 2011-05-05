@@ -14,19 +14,14 @@ OmniAuth.config.path_prefix = nil
 
 OmniAuth.config.on_failure = Proc.new do |env|
   env['devise.mapping'] = Devise::Mapping.find_by_path!(env['PATH_INFO'], :path)
-  controller_klass = "#{env['devise.mapping'].controllers[:omniauth_callbacks].camelize}Controller"
-  controller_klass.constantize.action(:failure).call(env)
+  controller_name  = ActiveSupport::Inflector.camelize(env['devise.mapping'].controllers[:omniauth_callbacks])
+  controller_klass = ActiveSupport::Inflector.constantize("#{controller_name}Controller")
+  controller_klass.action(:failure).call(env)
 end
 
 module Devise
   module OmniAuth
     autoload :Config,      "devise/omniauth/config"
     autoload :UrlHelpers,  "devise/omniauth/url_helpers"
-    autoload :TestHelpers, "devise/omniauth/test_helpers"
-
-    class << self
-      delegate :short_circuit_authorizers!, :unshort_circuit_authorizers!,
-        :test_mode!, :stub!, :reset_stubs!, :to => "Devise::OmniAuth::TestHelpers"
-    end
   end
 end

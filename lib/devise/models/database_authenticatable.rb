@@ -22,7 +22,7 @@ module Devise
       included do
         attr_reader :password, :current_password
         attr_accessor :password_confirmation
-        before_save :downcase_keys
+        before_validation :downcase_keys
       end
 
       # Generates password encryption based on the given value.
@@ -33,6 +33,7 @@ module Devise
 
       # Verifies whether an password (ie from sign in) is the user password.
       def valid_password?(password)
+        return false if encrypted_password.blank?
         bcrypt   = ::BCrypt::Password.new(self.encrypted_password)
         password = ::BCrypt::Engine.hash_secret("#{password}#{self.class.pepper}", bcrypt.salt)
         Devise.secure_compare(password, self.encrypted_password)
@@ -40,7 +41,7 @@ module Devise
 
       # Set password and password confirmation to nil
       def clean_up_passwords
-        self.password = self.password_confirmation = nil
+        self.password = self.password_confirmation = ""
       end
 
       # Update record attributes when :current_password matches, otherwise returns

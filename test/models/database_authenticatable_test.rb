@@ -6,12 +6,12 @@ class DatabaseAuthenticatableTest < ActiveSupport::TestCase
     # case_insensitive_keys is set to :email by default.
     email = 'Foo@Bar.com'
     user = new_user(:email => email)
-    
+
     assert_equal email, user.email
     user.save!
     assert_equal email.downcase, user.email
   end
-  
+
   test 'should respond to password and password confirmation' do
     user = new_user
     assert user.respond_to?(:password)
@@ -48,6 +48,18 @@ class DatabaseAuthenticatableTest < ActiveSupport::TestCase
     assert_not user.valid_password?('654321')
   end
 
+  test 'should not raise error with an empty password' do
+    user = create_user
+    user.encrypted_password = ''
+    assert_nothing_raised { user.valid_password?('123456') }
+  end
+
+  test 'should be an invalid password if the user has an empty password' do
+    user = create_user
+    user.encrypted_password = ''
+    assert_not user.valid_password?('654321')
+  end
+
   test 'should respond to current password' do
     assert new_user.respond_to?(:current_password)
   end
@@ -77,8 +89,8 @@ class DatabaseAuthenticatableTest < ActiveSupport::TestCase
 
   test 'should ignore password and its confirmation if they are blank' do
     user = create_user
-    assert user.update_with_password(:current_password => '123456', :email => "new@email.com")
-    assert_equal "new@email.com", user.email
+    assert user.update_with_password(:current_password => '123456', :email => "new@example.com")
+    assert_equal "new@example.com", user.email
   end
 
   test 'should not update password with invalid confirmation' do
@@ -94,5 +106,11 @@ class DatabaseAuthenticatableTest < ActiveSupport::TestCase
       :password => 'pass321', :password_confirmation => 'other')
     assert user.password.blank?
     assert user.password_confirmation.blank?
+  end
+
+  test 'downcase_keys with validation' do
+    user = User.create(:email => "HEllO@example.com", :password => "123456")
+    user = User.create(:email => "HEllO@example.com", :password => "123456")
+    assert !user.valid?
   end
 end

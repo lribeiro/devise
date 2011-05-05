@@ -17,11 +17,14 @@ module Devise
       Devise.include_helpers(Devise::Controllers)
     end
 
-    initializer "devise.navigationals" do
-      formats = Devise.navigational_formats
-      if formats.include?(:"*/*") && formats.exclude?("*/*")
-        puts "[DEVISE] We see the symbol :\"*/*\" in the navigational formats in your initializer " \
-          "but not the string \"*/*\". Due to changes in latest Rails, please include the latter."
+    initializer "devise.auth_keys" do
+      if Devise.authentication_keys.size > 1
+        puts "[DEVISE] You are configuring Devise to use more than one authentication key. " \
+          "In previous versions, we automatically added #{Devise.authentication_keys[1..-1].inspect} " \
+          "as scope to your e-mail validation, but this was changed now. If you were relying in such " \
+          "behavior, you should remove :validatable from your models and add the validations manually. " \
+          "To get rid of this warning, you can comment config.authentication_keys in your initializer " \
+          "and pass the current values as key to the devise call in your model."
       end
     end
 
@@ -34,24 +37,6 @@ module Devise
 
       if Devise.omniauth_configs.any?
         Devise.include_helpers(Devise::OmniAuth)
-      end
-    end
-
-    initializer "devise.encryptor_check" do
-      case Devise.encryptor
-      when :bcrypt
-        puts "[DEVISE] From version 1.2, there is no need to set your encryptor to bcrypt " \
-          "since encryptors are only enabled if you include :encryptable in your models. " \
-          "With this change, we can integrate better with bcrypt and get rid of the " \
-          "password_salt column (since bcrypt stores the salt with password). " \
-          "Please comment config.encryptor in your initializer to get rid of this warning."
-      when nil
-        # Nothing to say
-      else
-        puts "[DEVISE] You are using #{Devise.encryptor} as encryptor. From version 1.2, " \
-          "you need to explicitly add `devise :encryptable, :encryptor => :#{Devise.encryptor}` " \
-          "to your models and comment the current value in the config/initializers/devise.rb. " \
-          "You must also add t.encryptable to your existing migrations."
       end
     end
   end

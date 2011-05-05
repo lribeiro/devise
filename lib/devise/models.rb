@@ -17,6 +17,9 @@ module Devise
     # inside the given class.
     #
     def self.config(mod, *accessors) #:nodoc:
+      (class << mod; self; end).send :attr_accessor, :available_configs
+      mod.available_configs = accessors
+
       accessors.each do |accessor|
         mod.class_eval <<-METHOD, __FILE__, __LINE__ + 1
           def #{accessor}
@@ -46,13 +49,33 @@ module Devise
     #
     def devise(*modules)
       include Devise::Models::Authenticatable
-      options = modules.extract_options!
-      self.devise_modules += modules.map(&:to_sym).uniq.sort_by { |s|
+      options = modules.extract_options!.dup
+
+      selected_modules = modules.map(&:to_sym).uniq.sort_by do |s|
         Devise::ALL.index(s) || -1  # follow Devise::ALL order
-      }
+      end
 
       devise_modules_hook! do
-        devise_modules.each { |m| include Devise::Models.const_get(m.to_s.classify) }
+        selected_modules.each do |m|
+          mod = Devise::Models.const_get(m.to_s.classify)
+
+          if mod.const_defined?("ClassMethods")
+            class_mod = mod.const_get("ClassMethods")
+            extend class_mod
+
+            if class_mod.respond_to?(:available_configs)
+              available_configs = class_mod.available_configs
+              available_configs.each do |config|
+                next unless options.key?(config)                
+                send(:"#{config}=", options.delete(config))
+              end
+            end
+          end
+
+          include mod
+        end
+
+        self.devise_modules |= selected_modules
         options.each { |key, value| send(:"#{key}=", value) }
       end
     end

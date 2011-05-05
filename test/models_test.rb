@@ -6,6 +6,15 @@ class Configurable < User
          :remember_for => 7.days, :timeout_in => 15.minutes, :unlock_in => 10.days
 end
 
+class WithValidation < Admin
+  devise :database_authenticatable, :validatable, :password_length => 2..6
+end
+
+class Several < Admin
+  devise :validatable
+  devise :lockable
+end
+
 class Inheritable < Admin
 end
 
@@ -27,6 +36,20 @@ class ActiveRecordTest < ActiveSupport::TestCase
 
   test 'can cherry pick modules' do
     assert_include_modules Admin, :database_authenticatable, :registerable, :timeoutable, :recoverable, :lockable, :rememberable, :encryptable
+  end
+
+  if DEVISE_ORM == :active_record
+    test 'validations options are not applied to late' do
+      validators = WithValidation.validators_on :password
+      length = validators.find { |v| v.kind == :length }
+      assert_equal 2, length.options[:minimum]
+      assert_equal 6, length.options[:maximum]
+    end
+
+    test 'validations are applied just once' do
+      validators = Several.validators_on :password
+      assert_equal 1, validators.select{ |v| v.kind == :length }.length
+    end
   end
 
   test 'chosen modules are inheritable' do

@@ -39,6 +39,11 @@ class FailureTest < ActiveSupport::TestCase
       assert_equal 'http://test.host/users/sign_in', @response.second['Location']
     end
 
+    test 'return to the default redirect location for wildcard requests' do
+      call_failure 'action_dispatch.request.formats' => nil, 'HTTP_ACCEPT' => '*/*'
+      assert_equal 'http://test.host/users/sign_in', @response.second['Location']
+    end
+
     test 'uses the proxy failure message as symbol' do
       call_failure('warden' => OpenStruct.new(:message => :test))
       assert_equal 'test', @request.flash[:alert]
@@ -82,6 +87,18 @@ class FailureTest < ActiveSupport::TestCase
     test 'return 401 status' do
       call_failure('formats' => :xml)
       assert_equal 401, @response.first
+    end
+
+    test 'return appropriate body for xml' do
+      call_failure('formats' => :xml)
+      result = %(<?xml version="1.0" encoding="UTF-8"?>\n<errors>\n  <error>You need to sign in or sign up before continuing.</error>\n</errors>\n)
+      assert_equal result, @response.last.body
+    end
+
+    test 'return appropriate body for json' do
+      call_failure('formats' => :json)
+      result = %({"error":"You need to sign in or sign up before continuing."})
+      assert_equal result, @response.last.body
     end
 
     test 'return 401 status for unknown formats' do

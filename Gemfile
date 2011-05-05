@@ -2,7 +2,7 @@ source "http://rubygems.org"
 
 gemspec
 
-gem "rails", "~> 3.0.4"
+gem "rails", "~> 3.0.7"
 gem "oa-oauth", '~> 0.2.0', :require => "omniauth/oauth"
 gem "oa-openid", '~> 0.2.0', :require => "omniauth/openid"
 
@@ -22,8 +22,8 @@ platforms :ruby do
   end
 
   group :mongoid do
-    gem "mongo", "1.1.2"
-    gem "mongoid", "2.0.0.beta.20"
-    gem "bson_ext", "1.2.1"
+    gem "mongo", "~> 1.3.0"
+    gem "mongoid", "2.0.1"
+    gem "bson_ext", "~> 1.3.0"
   end
 end

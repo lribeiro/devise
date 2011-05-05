@@ -10,12 +10,14 @@ module Devise
   autoload :PathChecker, 'devise/path_checker'
   autoload :Schema, 'devise/schema'
   autoload :TestHelpers, 'devise/test_helpers'
+  autoload :Email, 'devise/email'
 
   module Controllers
     autoload :Helpers, 'devise/controllers/helpers'
     autoload :InternalHelpers, 'devise/controllers/internal_helpers'
     autoload :Rememberable, 'devise/controllers/rememberable'
     autoload :ScopedViews, 'devise/controllers/scoped_views'
+    autoload :SharedHelpers, 'devise/controllers/shared_helpers'
     autoload :UrlHelpers, 'devise/controllers/url_helpers'
   end
 
@@ -40,6 +42,9 @@ module Devise
   ROUTES      = ActiveSupport::OrderedHash.new
   STRATEGIES  = ActiveSupport::OrderedHash.new
   URL_HELPERS = ActiveSupport::OrderedHash.new
+
+  # Strategies that do not require user input.
+  NO_INPUT = []
 
   # True values used to check params
   TRUE_VALUES = [true, 1, '1', 't', 'T', 'true', 'TRUE']
@@ -90,13 +95,15 @@ module Devise
   mattr_accessor :http_authentication_realm
   @@http_authentication_realm = "Application"
 
-  # Email regex used to validate email formats. Adapted from authlogic.
+  # Email regex used to validate email formats. Based on RFC 822 and
+  # retrieved from Sixarm email validation gem
+  # (https://github.com/SixArm/sixarm_ruby_email_address_validation).
   mattr_accessor :email_regexp
-  @@email_regexp = /\A([\w\.%\+\-]+)@([\w\-]+\.)+([\w]{2,})\z/i
+  @@email_regexp = Devise::Email::EXACT_PATTERN
 
   # Range validation for password length
   mattr_accessor :password_length
-  @@password_length = 6..20
+  @@password_length = 6..128
 
   # The time the user will be remembered without asking for credentials again.
   mattr_accessor :remember_for
@@ -171,6 +178,10 @@ module Devise
   mattr_accessor :reset_password_keys
   @@reset_password_keys = [ :email ]
 
+  # Time interval you can reset your password with a reset password key
+  mattr_accessor :reset_password_within
+  @@reset_password_within = nil
+
   # The default scope which is used by warden.
   mattr_accessor :default_scope
   @@default_scope = nil
@@ -226,24 +237,30 @@ module Devise
     yield self
   end
 
+  def self.ref(arg)
+    if defined?(ActiveSupport::Dependencies::ClassCache)
+      ActiveSupport::Dependencies::Reference.store(arg)
+    else
+      ActiveSupport::Dependencies.ref(arg)
+    end
+  end
+
   def self.omniauth_providers
     omniauth_configs.keys
   end
 
-  def self.cookie_domain=(value)
-    ActiveSupport::Deprecation.warn "Devise.cookie_domain=(value) is deprecated. "
-      "Please use Devise.cookie_options = { :domain => value } instead."
-    self.cookie_options[:domain] = value
-  end
-
   # Get the mailer class from the mailer reference object.
   def self.mailer
-    @@mailer_ref.get
+    if defined?(ActiveSupport::Dependencies::ClassCache)
+      @@mailer_ref.get "Devise::Mailer"
+    else
+      @@mailer_ref.get
+    end
   end
 
   # Set the mailer reference object to access the mailer.
   def self.mailer=(class_name)
-    @@mailer_ref = ActiveSupport::Dependencies.ref(class_name)
+    @@mailer_ref = ref(class_name)
   end
   self.mailer = "Devise::Mailer"
 
@@ -279,12 +296,16 @@ module Devise
     options.assert_valid_keys(:strategy, :model, :controller, :route)
 
     if strategy = options[:strategy]
-      STRATEGIES[module_name] = (strategy == true ? module_name : strategy)
+      strategy = (strategy == true ? module_name : strategy)
+      STRATEGIES[module_name] = strategy
     end
 
     if controller = options[:controller]
-      CONTROLLERS[module_name] = (controller == true ? module_name : controller)
+      controller = (controller == true ? module_name : controller)
+      CONTROLLERS[module_name] = controller
     end
+
+    NO_INPUT << strategy if strategy && controller != :sessions
 
     if route = options[:route]
       case route
@@ -307,7 +328,8 @@ module Devise
 
     if options[:model]
       path = (options[:model] == true ? "devise/models/#{module_name}" : options[:model])
-      Devise::Models.send(:autoload, module_name.to_s.camelize.to_sym, path)
+      camelized = ActiveSupport::Inflector.camelize(module_name.to_s)
+      Devise::Models.send(:autoload, camelized.to_sym, path)
     end
 
     Devise::Mapping.add_module module_name

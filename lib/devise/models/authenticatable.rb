@@ -24,19 +24,19 @@ module Devise
     #   * +params_authenticatable+: if this model allows authentication through request params. By default true.
     #     It also accepts an array specifying the strategies that should allow params authentication.
     #
-    # == Active?
+    # == active_for_authentication?
     #
     # Before authenticating a user and in each request, Devise checks if your model is active by
-    # calling model.active?. This method is overwriten by other devise modules. For instance,
-    # :confirmable overwrites .active? to only return true if your model was confirmed.
+    # calling model.active_for_authentication?. This method is overwriten by other devise modules. For instance,
+    # :confirmable overwrites .active_for_authentication? to only return true if your model was confirmed.
     #
     # You overwrite this method yourself, but if you do, don't forget to call super:
     #
-    #   def active?
+    #   def active_for_authentication?
     #     super && special_condition_is_valid?
     #   end
     #
-    # Whenever active? returns false, Devise asks the reason why your model is inactive using
+    # Whenever active_for_authentication? returns false, Devise asks the reason why your model is inactive using
     # the inactive_message method. You can overwrite it as well:
     #
     #   def inactive_message
@@ -55,17 +55,17 @@ module Devise
       # find_for_authentication are the methods used in a Warden::Strategy to check
       # if a model should be signed in or not.
       #
-      # However, you should not overwrite this method, you should overwrite active? and
-      # inactive_message instead.
+      # However, you should not overwrite this method, you should overwrite active_for_authentication?
+      # and inactive_message instead.
       def valid_for_authentication?
-        if active?
+        if active_for_authentication?
           block_given? ? yield : true
         else
           inactive_message
         end
       end
 
-      def active?
+      def active_for_authentication?
         true
       end
 
@@ -74,6 +74,19 @@ module Devise
       end
 
       def authenticatable_salt
+      end
+
+      %w(to_xml to_json).each do |method|
+        class_eval <<-RUBY, __FILE__, __LINE__
+          def #{method}(options={})
+            if self.class.respond_to?(:accessible_attributes)
+              options = { :only => self.class.accessible_attributes.to_a }.merge(options || {})
+              super(options)
+            else
+              super
+            end
+          end
+        RUBY
       end
 
       module ClassMethods

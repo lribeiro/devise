@@ -55,11 +55,11 @@ module Devise
         unless_confirmed { send_confirmation_instructions }
       end
 
-      # Overwrites active? from Devise::Models::Activatable for confirmation
+      # Overwrites active_for_authentication? for confirmation
       # by verifying whether a user is active to sign in or not. If the user
       # is already confirmed, it should never be blocked. Otherwise we need to
       # calculate if the confirm time has not expired for this user.
-      def active?
+      def active_for_authentication?
         super && (!confirmation_required? || confirmed? || confirmation_period_valid?)
       end
 
@@ -84,7 +84,7 @@ module Devise
         # Checks if the confirmation for the user is within the limit time.
         # We do this by calculating if the difference between today and the
         # confirmation sent date does not exceed the confirm in time configured.
-        # Confirm_in is a model configuration, must always be an integer value.
+        # Confirm_within is a model configuration, must always be an integer value.
         #
         # Example:
         #
