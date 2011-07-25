@@ -1,10 +1,10 @@
 # encoding: UTF-8
 
 require 'rake/testtask'
-require 'rake/rdoctask'
+require 'rdoc/task'
 
 desc 'Default: run tests for all ORMs.'
-task :default => :pre_commit
+task :default => :test
 
 desc 'Run Devise tests for all ORMs.'
 task :pre_commit do

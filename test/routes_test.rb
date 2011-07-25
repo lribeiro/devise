@@ -96,6 +96,11 @@ class DefaultRoutingTest < ActionController::TestCase
     assert_recognizes({:controller => 'users/omniauth_callbacks', :action => 'facebook'}, {:path => 'users/auth/facebook/callback', :method => :post})
     assert_named_route "/users/auth/facebook/callback", :user_omniauth_callback_path, :facebook
 
+    # named open_id
+    assert_recognizes({:controller => 'users/omniauth_callbacks', :action => 'google'}, {:path => 'users/auth/google/callback', :method => :get})
+    assert_recognizes({:controller => 'users/omniauth_callbacks', :action => 'google'}, {:path => 'users/auth/google/callback', :method => :post})
+    assert_named_route "/users/auth/google/callback", :user_omniauth_callback_path, :google
+
     assert_raise ActionController::RoutingError do
       assert_recognizes({:controller => 'ysers/omniauth_callbacks', :action => 'twitter'}, {:path => 'users/auth/twitter/callback', :method => :get})
     end
@@ -169,6 +174,55 @@ class CustomizedRoutingTest < ActionController::TestCase
     assert_recognizes({:controller => 'devise/sessions', :action => 'destroy'}, {:path => '/sign_out_via/delete_or_posts/sign_out', :method => :delete})
     assert_raise ActionController::RoutingError do
       assert_recognizes({:controller => 'devise/sessions', :action => 'destroy'}, {:path => '/sign_out_via/delete_or_posts/sign_out', :method => :get})
+    end
+  end
+  
+  test 'map with constraints defined in hash' do
+    assert_recognizes({:controller => 'devise/registrations', :action => 'new'}, {:path => 'http://192.168.1.100/headquarters/sign_up', :method => :get})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/registrations', :action => 'new'}, {:path => 'http://10.0.0.100/headquarters/sign_up', :method => :get})
+    end
+  end
+  
+  test 'map with constraints defined in block' do
+    assert_recognizes({:controller => 'devise/registrations', :action => 'new'}, {:path => 'http://192.168.1.100/homebase/sign_up', :method => :get})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/registrations', :action => 'new'}, {:path => 'http://10.0.0.100//homebase/sign_up', :method => :get})
+    end
+  end
+  
+  test 'map with format false for sessions' do
+    assert_recognizes({:controller => 'devise/sessions', :action => 'new'}, {:path => '/htmlonly_admin/sign_in', :method => :get})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/sessions', :action => 'new'}, {:path => '/htmlonly_admin/sign_in.xml', :method => :get})
+    end
+  end
+  
+  test 'map with format false for passwords' do
+    assert_recognizes({:controller => 'devise/passwords', :action => 'create'}, {:path => '/htmlonly_admin/password', :method => :post})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/passwords', :action => 'create'}, {:path => '/htmlonly_admin/password.xml', :method => :post})
+    end
+  end
+  
+  test 'map with format false for registrations' do
+    assert_recognizes({:controller => 'devise/registrations', :action => 'new'}, {:path => '/htmlonly_admin/sign_up', :method => :get})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/registrations', :action => 'new'}, {:path => '/htmlonly_admin/sign_up.xml', :method => :get})
+    end
+  end
+  
+  test 'map with format false for confirmations' do
+    assert_recognizes({:controller => 'devise/confirmations', :action => 'show'}, {:path => '/htmlonly_users/confirmation', :method => :get})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/confirmations', :action => 'show'}, {:path => '/htmlonly_users/confirmation.xml', :method => :get})
+    end
+  end
+  
+  test 'map with format false for unlocks' do
+    assert_recognizes({:controller => 'devise/unlocks', :action => 'show'}, {:path => '/htmlonly_users/unlock', :method => :get})
+    assert_raise ActionController::RoutingError do
+      assert_recognizes({:controller => 'devise/unlocks', :action => 'show'}, {:path => '/htmlonly_users/unlock.xml', :method => :get})
     end
   end
 end

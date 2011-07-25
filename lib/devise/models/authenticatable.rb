@@ -1,4 +1,5 @@
 require 'devise/hooks/activatable'
+require 'devise/models/serializable'
 
 module Devise
   module Models
@@ -46,6 +47,8 @@ module Devise
     module Authenticatable
       extend ActiveSupport::Concern
 
+      include Devise::Models::Serializable
+
       included do
         class_attribute :devise_modules, :instance_writer => false
         self.devise_modules ||= []
@@ -76,21 +79,8 @@ module Devise
       def authenticatable_salt
       end
 
-      %w(to_xml to_json).each do |method|
-        class_eval <<-RUBY, __FILE__, __LINE__
-          def #{method}(options={})
-            if self.class.respond_to?(:accessible_attributes)
-              options = { :only => self.class.accessible_attributes.to_a }.merge(options || {})
-              super(options)
-            else
-              super
-            end
-          end
-        RUBY
-      end
-
       module ClassMethods
-        Devise::Models.config(self, :authentication_keys, :request_keys, :case_insensitive_keys, :http_authenticatable, :params_authenticatable)
+        Devise::Models.config(self, :authentication_keys, :request_keys, :strip_whitespace_keys, :case_insensitive_keys, :http_authenticatable, :params_authenticatable)
 
         def params_authenticatable?(strategy)
           params_authenticatable.is_a?(Array) ?
@@ -115,6 +105,7 @@ module Devise
         def find_for_authentication(conditions)
           conditions = filter_auth_params(conditions.dup)
           (case_insensitive_keys || []).each { |k| conditions[k].try(:downcase!) }
+          (strip_whitespace_keys || []).each { |k| conditions[k].try(:strip!) }
           to_adapter.find_first(conditions)
         end
 
@@ -126,6 +117,7 @@ module Devise
         # Find an initialize a group of attributes based on a list of required attributes.
         def find_or_initialize_with_errors(required_attributes, attributes, error=:invalid) #:nodoc:
           (case_insensitive_keys || []).each { |k| attributes[k].try(:downcase!) }
+          (strip_whitespace_keys || []).each { |k| attributes[k].try(:strip!) }
 
           attributes = attributes.slice(*required_attributes)
           attributes.delete_if { |key, value| value.blank? }
@@ -152,8 +144,13 @@ module Devise
         # Force keys to be string to avoid injection on mongoid related database.
         def filter_auth_params(conditions)
           conditions.each do |k, v|
-            conditions[k] = v.to_s
+            conditions[k] = v.to_s if auth_param_requires_string_conversion?(v)
           end if conditions.is_a?(Hash)
+        end
+        
+        # Determine which values should be transformed to string or passed as-is to the query builder underneath
+        def auth_param_requires_string_conversion?(value)
+          true unless value.is_a?(TrueClass) || value.is_a?(FalseClass) || value.is_a?(Fixnum)
         end
 
         # Generate a token by looping and ensuring does not already exist.

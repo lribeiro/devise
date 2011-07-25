@@ -101,6 +101,54 @@ class AuthenticationSanityTest < ActionController::IntegrationTest
     assert_contain 'Private!'
   end
 
+  test 'signed in as admin should get admin dashboard' do
+    sign_in_as_admin
+    assert warden.authenticated?(:admin)
+    assert_not warden.authenticated?(:user)
+
+    get dashboard_path
+
+    assert_response :success
+    assert_template 'home/admin'
+    assert_contain 'Admin dashboard'
+  end
+
+  test 'signed in as user should get user dashboard' do
+    sign_in_as_user
+    assert warden.authenticated?(:user)
+    assert_not warden.authenticated?(:admin)
+
+    get dashboard_path
+
+    assert_response :success
+    assert_template 'home/user'
+    assert_contain 'User dashboard'
+  end
+
+  test 'not signed in should get no dashboard' do
+    assert_raises ActionController::RoutingError do
+      get dashboard_path
+    end
+  end
+
+  test 'signed in user should not see join page' do
+    sign_in_as_user
+    assert warden.authenticated?(:user)
+    assert_not warden.authenticated?(:admin)
+
+    assert_raises ActionController::RoutingError do
+      get join_path
+    end
+  end
+
+  test 'not signed in should see join page' do
+    get join_path
+
+    assert_response :success
+    assert_template 'home/join'
+    assert_contain 'Join'
+  end
+
   test 'signed in as user should not be able to access admins actions' do
     sign_in_as_user
     assert warden.authenticated?(:user)
@@ -306,6 +354,20 @@ class AuthenticationWithScopesTest < ActionController::IntegrationTest
 end
 
 class AuthenticationOthersTest < ActionController::IntegrationTest
+  test 'handles unverified requests gets rid of caches' do
+    swap UsersController, :allow_forgery_protection => true do
+      post exhibit_user_url(1)
+      assert_not warden.authenticated?(:user)
+
+      sign_in_as_user
+      assert warden.authenticated?(:user)
+
+      post exhibit_user_url(1)
+      assert_not warden.authenticated?(:user)
+      assert_equal "User is not authenticated", response.body
+    end
+  end
+
   test 'uses the custom controller with the custom controller view' do
     get '/admin_area/sign_in'
     assert_contain 'Sign in'

@@ -3,6 +3,7 @@ require 'active_support/core_ext/numeric/time'
 require 'active_support/dependencies'
 require 'orm_adapter'
 require 'set'
+require 'securerandom'
 
 module Devise
   autoload :FailureApp, 'devise/failure_app'
@@ -28,6 +29,10 @@ module Devise
     autoload :RestfulAuthenticationSha1, 'devise/encryptors/restful_authentication_sha1'
     autoload :Sha512, 'devise/encryptors/sha512'
     autoload :Sha1, 'devise/encryptors/sha1'
+  end
+
+  module Mailers
+    autoload :Helpers, 'devise/mailers/helpers'
   end
 
   module Strategies
@@ -78,6 +83,11 @@ module Devise
   # False by default for backwards compatibility.
   mattr_accessor :case_insensitive_keys
   @@case_insensitive_keys = false
+  
+  # Keys that should have whitespace stripped.
+  # False by default for backwards compatibility.
+  mattr_accessor :strip_whitespace_keys
+  @@strip_whitespace_keys = false
 
   # If http authentication is enabled by default.
   mattr_accessor :http_authenticatable
@@ -231,6 +241,10 @@ module Devise
   @@warden_config = nil
   @@warden_config_block = nil
 
+  # When true, enter in paranoid mode to avoid user enumeration.
+  mattr_accessor :paranoid
+  @@paranoid = false
+
   # Default way to setup Devise. Run rails generate devise_install to create
   # a fresh initializer with all configuration values.
   def self.setup
@@ -363,7 +377,8 @@ module Devise
   #
   def self.omniauth(provider, *args)
     @@helpers << Devise::OmniAuth::UrlHelpers
-    @@omniauth_configs[provider] = Devise::OmniAuth::Config.new(provider, args)
+    config = Devise::OmniAuth::Config.new(provider, args)
+    @@omniauth_configs[config.strategy_name.to_sym] = config
   end
 
   # Include helpers in the given scope to AC and AV.
@@ -402,7 +417,7 @@ module Devise
 
   # Generate a friendly string randomically to be used as token.
   def self.friendly_token
-    ActiveSupport::SecureRandom.base64(15).tr('+/=', 'xyz')
+    SecureRandom.base64(15).tr('+/=', 'xyz')
   end
 
   # constant-time comparison algorithm to prevent timing attacks

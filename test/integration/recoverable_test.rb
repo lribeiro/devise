@@ -17,7 +17,7 @@ class PasswordTest < ActionController::IntegrationTest
     click_button 'Send me reset password instructions'
   end
 
-  def reset_password(options={}, &block)    
+  def reset_password(options={}, &block)
     visit edit_user_password_path(:reset_password_token => options[:reset_password_token]) unless options[:visit] == false
     assert_response :success
 
@@ -29,11 +29,11 @@ class PasswordTest < ActionController::IntegrationTest
 
   test 'reset password with email of different case should succeed when email is in the list of case insensitive keys' do
     create_user(:email => 'Foo@Bar.com')
-    
+
     request_forgot_password do
       fill_in 'email', :with => 'foo@bar.com'
     end
-    
+
     assert_current_url '/users/sign_in'
     assert_contain 'You will receive an email with instructions about how to reset your password in a few minutes.'
   end
@@ -41,14 +41,40 @@ class PasswordTest < ActionController::IntegrationTest
   test 'reset password with email of different case should fail when email is NOT the list of case insensitive keys' do
     swap Devise, :case_insensitive_keys => [] do
       create_user(:email => 'Foo@Bar.com')
-      
+
       request_forgot_password do
         fill_in 'email', :with => 'foo@bar.com'
       end
-      
+
       assert_response :success
       assert_current_url '/users/password'
       assert_have_selector "input[type=email][value='foo@bar.com']"
+      assert_contain 'not found'
+    end
+  end
+
+  test 'reset password with email with extra whitespace should succeed when email is in the list of strip whitespace keys' do
+    create_user(:email => 'foo@bar.com')
+
+    request_forgot_password do
+      fill_in 'email', :with => ' foo@bar.com '
+    end
+
+    assert_current_url '/users/sign_in'
+    assert_contain 'You will receive an email with instructions about how to reset your password in a few minutes.'
+  end
+
+  test 'reset password with email with extra whitespace should fail when email is NOT the list of strip whitespace keys' do
+    swap Devise, :strip_whitespace_keys => [] do
+      create_user(:email => 'foo@bar.com')
+
+      request_forgot_password do
+        fill_in 'email', :with => ' foo@bar.com '
+      end
+
+      assert_response :success
+      assert_current_url '/users/password'
+      assert_have_selector "input[type=email][value=' foo@bar.com ']"
       assert_contain 'not found'
     end
   end
@@ -161,7 +187,7 @@ class PasswordTest < ActionController::IntegrationTest
     create_user
     post user_password_path(:format => 'xml'), :user => {:email => "user@test.com"}
     assert_response :success
-    assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>)
+    assert_equal response.body, { }.to_xml
   end
 
   test 'reset password request with invalid E-Mail in XML format should return valid response' do
@@ -193,5 +219,39 @@ class PasswordTest < ActionController::IntegrationTest
     put user_password_path(:format => 'xml'), :user => {:reset_password_token => user.reload.reset_password_token, :password => '', :password_confirmation => '987654321'}
     assert_response :unprocessable_entity
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<errors>)
+  end
+
+  test "when using json requests to ask a confirmable request, should not return the object" do
+    user = create_user(:confirm => false)
+
+    post user_password_path(:format => :json), :user => { :email => user.email }
+
+    assert_response :success
+    assert_equal response.body, "{}"
+  end
+
+  test "when in paranoid mode and with an invalid e-mail, asking to reset a password should display a message that does not indicates that the e-mail does not exists in the database" do
+    swap Devise, :paranoid => true do
+      visit_new_password_path
+      fill_in "email", :with => "arandomemail@test.com"
+      click_button 'Send me reset password instructions'
+
+      assert_not_contain "1 error prohibited this user from being saved:"
+      assert_not_contain "Email not found"
+      assert_contain "If your e-mail exists on our database, you will receive a password recovery link on your e-mail"
+      assert_current_url "/users/password"
+    end
+  end
+
+  test "when in paranoid mode and with a valid e-mail, asking to reset password should display a message that does not indicates that the email exists in the database and redirect to the failure route" do
+    swap Devise, :paranoid => true do
+      user = create_user
+      visit_new_password_path
+      fill_in 'email', :with => user.email
+      click_button 'Send me reset password instructions'
+
+      assert_contain "If your e-mail exists on our database, you will receive a password recovery link on your e-mail"
+      assert_current_url "/users/password"
+    end
   end
 end

@@ -12,9 +12,9 @@ class Devise::UnlocksController < ApplicationController
   def create
     self.resource = resource_class.send_unlock_instructions(params[resource_name])
 
-    if resource.errors.empty?
+    if successful_and_sane?(resource)
       set_flash_message :notice, :send_instructions if is_navigational_format?
-      respond_with resource, :location => new_session_path(resource_name)
+      respond_with({}, :location => new_session_path(resource_name))
     else
       respond_with_navigational(resource){ render_with_scope :new }
     end

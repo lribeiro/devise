@@ -1,9 +1,40 @@
+* bug fix
+  * Properly deprecate setup_mail
+
+== 1.4.2
+
+* bug fix
+  * Improve Rails 3.1 compatibility
+  * Provide a more robust behavior to serializers and add :force_except option
+
+== 1.4.1
+
 * enhancements
+  * Add :defaults and :format support on router
+  * Add simple form generators
+  * Better localization for devise_error_messages! (by github.com/zedtux)
+
+* bug fix
+  * Ensure to_xml is properly white listened
+  * Ensure handle_unverified_request clean up any cached signed-in user
+
+== 1.4.0
+
+* enhancements
+  * Added authenticated and unauthenticated to the router to route the used based on his status (by github.com/sj26)
   * Improve e-mail regexp (by github.com/rodrigoflores)
+  * Add strip_whitespace_keys and default to e-mail (by github.com/swrobel)
+  * Do not run format and uniqueness validations on e-mail if it hasn't changed (by github.com/Thibaut)
+  * Added update_without_password to update models but not allowing the password to change (by github.com/fschwahn)
+  * Added config.paranoid, check the generator for more information (by github.com/rodrigoflores)
 
 * bug fix
   * password_required? should not affect length validation
   * User cannot access sign up and similar pages if he is already signed in through a cookie or token
+  * Do not convert booleans to strings on finders (by github.com/xavier)
+  * Run validations even if current_password fails (by github.com/crx)
+  * Devise now honors routes constraints (by github.com/macmartine)
+  * Do not return the user resource when requesting instructions (by github.com/rodrigoflores)
 
 == 1.3.4
 

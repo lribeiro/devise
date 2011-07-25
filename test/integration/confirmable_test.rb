@@ -37,6 +37,15 @@ class ConfirmationTest < ActionController::IntegrationTest
     assert user.reload.confirmed?
   end
 
+  test 'user should be redirected to a custom path after confirmation' do
+    Devise::ConfirmationsController.any_instance.stubs(:after_confirmation_path_for).returns("/?custom=1")
+
+    user = create_user(:confirm => false)
+    visit_user_confirmation_with_token(user.confirmation_token)
+
+    assert_current_url "/?custom=1"
+  end
+
   test 'already confirmed user should not be able to confirm the account again' do
     user = create_user(:confirm => false)
     user.confirmed_at = Time.now
@@ -106,7 +115,7 @@ class ConfirmationTest < ActionController::IntegrationTest
     user = create_user(:confirm => false)
     post user_confirmation_path(:format => 'xml'), :user => { :email => user.email }
     assert_response :success
-    assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>)
+    assert_equal response.body, {}.to_xml
   end
 
   test 'resent confirmation token with invalid E-Mail in XML format should return invalid response' do
@@ -128,5 +137,43 @@ class ConfirmationTest < ActionController::IntegrationTest
     get user_confirmation_path(:confirmation_token => 'invalid_confirmation', :format => 'xml')
     assert_response :unprocessable_entity
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<errors>)
+  end
+
+  test 'request an account confirmation account with JSON, should return an empty JSON' do
+    user = create_user(:confirm => false)
+
+    post user_confirmation_path, :user => { :email => user.email }, :format => :json
+    assert_response :success
+    assert_equal response.body, {}.to_json
+  end
+
+  test "when in paranoid mode and with a valid e-mail, should not say that the e-mail is valid" do
+    swap Devise, :paranoid => true do
+      user = create_user(:confirm => false)
+      visit new_user_session_path
+
+      click_link "Didn't receive confirmation instructions?"
+      fill_in 'email', :with => user.email
+      click_button 'Resend confirmation instructions'
+
+      assert_contain "If your e-mail exists on our database, you will receive an email with instructions about how to confirm your account in a few minutes."
+      assert_current_url "/users/confirmation"
+    end
+  end
+
+  test "when in paranoid mode and with a invalid e-mail, should not say that the e-mail is invalid" do
+    swap Devise, :paranoid => true do
+      visit new_user_session_path
+
+      click_link "Didn't receive confirmation instructions?"
+      fill_in 'email', :with => "idonthavethisemail@gmail.com"
+      click_button 'Resend confirmation instructions'
+
+      assert_not_contain "1 error prohibited this user from being saved:"
+      assert_not_contain "Email not found"
+
+      assert_contain "If your e-mail exists on our database, you will receive an email with instructions about how to confirm your account in a few minutes."
+      assert_current_url "/users/confirmation"
+    end
   end
 end
