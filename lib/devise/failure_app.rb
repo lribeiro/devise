@@ -115,7 +115,7 @@ module Devise
     end
 
     def recall_app(app)
-      controller, action = app.split("#")
+      controller, action = app.to_s.split("#")
       controller_name  = ActiveSupport::Inflector.camelize(controller)
       controller_klass = ActiveSupport::Inflector.constantize("#{controller_name}Controller")
       controller_klass.action(action)
