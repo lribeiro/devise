@@ -401,14 +401,14 @@ class AuthenticationOthersTest < ActionController::IntegrationTest
 
   test 'sign in stub in xml format' do
     get new_user_session_path(:format => 'xml')
-    assert_equal "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>\n  <email></email>\n  <password></password>\n</user>\n", response.body
+    assert_equal "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>\n  <email></email>\n  <password nil=\"true\"></password>\n</user>\n", response.body
   end
 
   test 'sign in stub in json format' do
     get new_user_session_path(:format => 'json')
     assert_match '{"user":{', response.body
     assert_match '"email":""', response.body
-    assert_match '"password":""', response.body
+    assert_match '"password":null', response.body
   end
 
   test 'sign in stub in json with non attribute key' do
@@ -416,7 +416,7 @@ class AuthenticationOthersTest < ActionController::IntegrationTest
       get new_user_session_path(:format => 'json')
       assert_match '{"user":{', response.body
       assert_match '"other_key":null', response.body
-      assert_match '"password":""', response.body
+      assert_match '"password":null', response.body
     end
   end
 
@@ -439,6 +439,22 @@ class AuthenticationOthersTest < ActionController::IntegrationTest
     assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>)
   end
 
+  test 'sign in with xml format is idempotent' do
+    get new_user_session_path(:format => 'xml')
+    assert_response :success
+
+    create_user
+    post user_session_path(:format => 'xml'), :user => {:email => "user@test.com", :password => '123456'}
+    assert_response :success
+
+    get new_user_session_path(:format => 'xml')
+    assert_response :success
+
+    post user_session_path(:format => 'xml'), :user => {:email => "user@test.com", :password => '123456'}
+    assert_response :success
+    assert response.body.include? %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>)
+  end
+
   test 'sign out with xml format returns ok response' do
     sign_in_as_user
     get destroy_user_session_path(:format => 'xml')
@@ -451,6 +467,23 @@ class AuthenticationOthersTest < ActionController::IntegrationTest
     get destroy_user_session_path(:format => 'json')
     assert_response :ok
     assert_not warden.authenticated?(:user)
+  end
+end
+
+class AuthenticationKeysTest < ActionController::IntegrationTest
+  test 'missing authentication keys cause authentication to abort' do
+    swap Devise, :authentication_keys => [:subdomain] do
+      sign_in_as_user
+      assert_contain "Invalid email or password."
+      assert_not warden.authenticated?(:user)
+    end
+  end
+
+  test 'missing authentication keys cause authentication to abort unless marked as not required' do
+    swap Devise, :authentication_keys => { :email => true, :subdomain => false } do
+      sign_in_as_user
+      assert warden.authenticated?(:user)
+    end
   end
 end
 

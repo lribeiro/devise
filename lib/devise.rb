@@ -11,7 +11,6 @@ module Devise
   autoload :PathChecker, 'devise/path_checker'
   autoload :Schema, 'devise/schema'
   autoload :TestHelpers, 'devise/test_helpers'
-  autoload :Email, 'devise/email'
 
   module Controllers
     autoload :Helpers, 'devise/controllers/helpers'
@@ -105,11 +104,11 @@ module Devise
   mattr_accessor :http_authentication_realm
   @@http_authentication_realm = "Application"
 
-  # Email regex used to validate email formats. Based on RFC 822 and
-  # retrieved from Sixarm email validation gem
-  # (https://github.com/SixArm/sixarm_ruby_email_address_validation).
+  # Email regex used to validate email formats. It simply asserts that
+  # an one (and only one) @ exists in the given string. This is mainly
+  # to give user feedback and not to assert the e-mail validity.
   mattr_accessor :email_regexp
-  @@email_regexp = Devise::Email::EXACT_PATTERN
+  @@email_regexp = /\A[^@]+@([^@\.]+\.)+[^@\.]+\z/
 
   # Range validation for password length
   mattr_accessor :password_length
@@ -398,6 +397,12 @@ module Devise
     Rails::VERSION::STRING[0,3] != "3.0"
   end
 
+  # Regenerates url helpers considering Devise.mapping
+  def self.regenerate_helpers!
+    Devise::Controllers::UrlHelpers.remove_helpers!
+    Devise::Controllers::UrlHelpers.generate_helpers!
+  end
+
   # A method used internally to setup warden manager from the Rails initialize
   # block.
   def self.configure_warden! #:nodoc:
@@ -417,7 +422,7 @@ module Devise
 
   # Generate a friendly string randomically to be used as token.
   def self.friendly_token
-    SecureRandom.base64(15).tr('+/=', 'xyz')
+    SecureRandom.base64(15).tr('+/=lIO0', 'pqrsxyz')
   end
 
   # constant-time comparison algorithm to prevent timing attacks

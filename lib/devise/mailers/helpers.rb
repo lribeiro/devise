@@ -10,11 +10,6 @@ module Devise
 
       protected
 
-      def setup_mail(*args)
-        ActiveSupport::Deprecation.warn "setup_mail is deprecated, please use devise_mail instead", caller
-        devise_mail(*args)
-      end
-
       # Configure default email options
       def devise_mail(record, action)
         initialize_from_record(record)
@@ -50,7 +45,9 @@ module Devise
       end
 
       def mailer_sender(mapping)
-        if Devise.mailer_sender.is_a?(Proc)
+        if default_params[:from].present?
+          default_params[:from]
+        elsif Devise.mailer_sender.is_a?(Proc)
           Devise.mailer_sender.call(mapping.name)
         else
           Devise.mailer_sender

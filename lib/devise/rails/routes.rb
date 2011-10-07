@@ -4,7 +4,12 @@ module ActionDispatch::Routing
     # need devise_for mappings already declared to create filters and helpers.
     def finalize_with_devise!
       finalize_without_devise!
-      Devise.configure_warden!
+
+      @devise_finalized ||= begin
+        Devise.configure_warden!
+        Devise.regenerate_helpers!
+        true
+      end
     end
     alias_method_chain :finalize!, :devise
   end
@@ -93,7 +98,7 @@ module ActionDispatch::Routing
     #
     #    Also pay attention that when you use a namespace it will affect all the helpers and methods for controllers
     #    and views. For example, using the above setup you'll end with following methods:
-    #    current_publisher_account, authenticate_publisher_account!, pusblisher_account_signed_in, etc.
+    #    current_publisher_account, authenticate_publisher_account!, publisher_account_signed_in, etc.
     #
     #  * :skip => tell which controller you want to skip routes from being created:
     #
@@ -102,6 +107,14 @@ module ActionDispatch::Routing
     #  * :only => the opposite of :skip, tell which controllers only to generate routes to:
     #
     #      devise_for :users, :only => :sessions
+    #
+    #  * :skip_helpers => skip generating Devise url helpers like new_session_path(@user).
+    #    This is useful to avoid conflicts with previous routes and is false by default.
+    #    It accepts true as option, meaning it will skip all the helpers for the controllers
+    #    given in :skip but it also accepts specific helpers to be skipped:
+    #
+    #      devise_for :users, :skip => [:registrations, :confirmations], :skip_helpers => true
+    #      devise_for :users, :skip_helpers => [:registrations, :confirmations]
     #
     #  * :format => include "(.:format)" in the generated routes? true by default, set to false to disable:
     #
@@ -160,6 +173,7 @@ module ActionDispatch::Routing
     #     end
     #
     def devise_for(*resources)
+      @devise_finalized = false
       options = resources.extract_options!
 
       options[:as]          ||= @scope[:as]     if @scope[:as].present?
@@ -168,7 +182,6 @@ module ActionDispatch::Routing
       options[:path_names]    = (@scope[:path_names] || {}).merge(options[:path_names] || {})
       options[:constraints]   = (@scope[:constraints] || {}).merge(options[:constraints] || {})
       options[:defaults]      = (@scope[:defaults] || {}).merge(options[:defaults] || {})
-
       @scope[:options]        = (@scope[:options] || {}).merge({:format => false}) if options[:format] == false
 
       resources.map!(&:to_sym)
@@ -188,11 +201,7 @@ module ActionDispatch::Routing
           raise_no_devise_method_error!(mapping.class_name)
         end
 
-        routes  = mapping.routes
-        if options.has_key?(:only)
-          routes  = Array(options.delete(:only)).map { |s| s.to_s.singularize.to_sym } & mapping.routes
-        end
-        routes -= Array(options.delete(:skip)).map { |s| s.to_s.singularize.to_sym }
+        routes  = mapping.used_routes
 
         devise_scope mapping.name do
           yield if block_given?
@@ -205,11 +214,15 @@ module ActionDispatch::Routing
 
     # Allow you to add authentication request from the router:
     #
-    #   authenticate(:user) do
+    #   authenticate do
     #     resources :post
     #   end
     #
-    def authenticate(scope)
+    #   authenticate(:admin) do
+    #     resources :users
+    #   end
+    #
+    def authenticate(scope=nil)
       constraint = lambda do |request|
         request.env["warden"].authenticate!(:scope => scope)
       end
@@ -274,6 +287,17 @@ module ActionDispatch::Routing
     # Notice you cannot have two scopes mapping to the same URL. And remember, if
     # you try to access a devise controller without specifying a scope, it will
     # raise ActionNotFound error.
+    #
+    # Also be aware of that 'devise_scope' and 'as' use the singular form of the
+    # noun where other devise route commands expect the plural form. This would be a
+    # good and working example.
+    #
+    #  devise_scope :user do
+    #    match "/some/route" => "some_devise_controller"
+    #  end
+    #  devise_for :users
+    #
+    # Notice and be aware of the differences above between :user and :users
     def devise_scope(scope)
       constraint = lambda do |request|
         request.env["devise.mapping"] = Devise.mappings[scope]
@@ -319,7 +343,7 @@ module ActionDispatch::Routing
           :cancel => mapping.path_names[:cancel]
         }
 
-        resource :registration, :except => :show, :path => mapping.path_names[:registration],
+        resource :registration, :only => [:new, :create, :edit, :update, :destroy], :path => mapping.path_names[:registration],
                  :path_names => path_names, :controller => controllers[:registrations] do
           get :cancel
         end
@@ -330,12 +354,12 @@ module ActionDispatch::Routing
         path_prefix = "/#{mapping.path}/auth".squeeze("/")
 
         if ::OmniAuth.config.path_prefix && ::OmniAuth.config.path_prefix != path_prefix
-          warn "[DEVISE] You can only add :omniauthable behavior to one model."
+          raise "You can only add :omniauthable behavior to one Devise model"
         else
           ::OmniAuth.config.path_prefix = path_prefix
         end
 
-        match "#{path_prefix}/:action/callback", :action => Regexp.union(mapping.to.omniauth_providers.map(&:to_s)),
+        match "#{path_prefix}/:action/callback", :constraints => { :action => Regexp.union(mapping.to.omniauth_providers.map(&:to_s)) },
           :to => controllers[:omniauth_callbacks], :as => :omniauth_callback
       ensure
         @scope[:path] = path

@@ -10,6 +10,9 @@ module Devise
     #
     # DatabaseAuthenticable adds the following options to devise_for:
     #
+    #   * +pepper+: a random string used to provide a more secure hash. Use
+    #     `rake secret` to generate new keys.
+    #
     #   * +stretches+: the cost given to bcrypt.
     #
     # == Examples
@@ -42,7 +45,7 @@ module Devise
 
       # Set password and password confirmation to nil
       def clean_up_passwords
-        self.password = self.password_confirmation = ""
+        self.password = self.password_confirmation = nil
       end
 
       # Update record attributes when :current_password matches, otherwise returns

@@ -69,6 +69,10 @@ class RegistrationTest < ActionController::IntegrationTest
   end
 
   test 'a guest user cannot sign up with invalid information' do
+    # Dirty tracking behavior prevents email validations from being applied:
+    #    https://github.com/mongoid/mongoid/issues/756
+    (pending "Fails on Mongoid < 2.1"; break) if defined?(Mongoid) && Mongoid::VERSION.to_f < 2.1
+
     get new_user_registration_path
 
     fill_in 'email', :with => 'invalid_email'
@@ -87,6 +91,10 @@ class RegistrationTest < ActionController::IntegrationTest
   end
 
   test 'a guest should not sign up with email/password that already exists' do
+    # Dirty tracking behavior prevents email validations from being applied:
+    #    https://github.com/mongoid/mongoid/issues/756
+    (pending "Fails on Mongoid < 2.1"; break) if defined?(Mongoid) && Mongoid::VERSION.to_f < 2.1
+
     user = create_user
     get new_user_registration_path
 
@@ -211,14 +219,14 @@ class RegistrationTest < ActionController::IntegrationTest
     get new_user_registration_path(:format => 'xml')
     assert_response :success
     assert_match %(<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>), response.body
-    assert_no_match(/<confirmation-token/, response.body) if DEVISE_ORM == :active_record
+    assert_no_match(/<confirmation-token/, response.body)
   end
 
   test 'a user with JSON sign up stub' do
     get new_user_registration_path(:format => 'json')
     assert_response :success
     assert_match %({"user":), response.body
-    assert_no_match(/"confirmation_token"/, response.body) if DEVISE_ORM == :active_record
+    assert_no_match(/"confirmation_token"/, response.body)
   end
 
   test 'an admin sign up with valid information in XML format should return valid response' do

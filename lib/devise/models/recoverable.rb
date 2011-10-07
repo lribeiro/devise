@@ -29,7 +29,11 @@ module Devise
       def reset_password!(new_password, new_password_confirmation)
         self.password = new_password
         self.password_confirmation = new_password_confirmation
-        clear_reset_password_token if valid?
+        if valid?
+          clear_reset_password_token
+          after_password_reset
+        end
+
         save
       end
 
@@ -89,8 +93,11 @@ module Devise
           self.reset_password_sent_at = nil if respond_to?(:reset_password_sent_at=)
         end
 
+        def after_password_reset
+        end
+
       module ClassMethods
-        # Attempt to find a user by it's email. If a record is found, send new
+        # Attempt to find a user by its email. If a record is found, send new
         # password instructions to it. If not user is found, returns a new user
         # with an email not found error.
         # Attributes must contain the user email
@@ -105,7 +112,7 @@ module Devise
           generate_token(:reset_password_token)
         end
 
-        # Attempt to find a user by it's reset_password_token to reset its
+        # Attempt to find a user by its reset_password_token to reset its
         # password. If a user is found and token is still valid, reset its password and automatically
         # try saving the record. If not user is found, returns a new user
         # containing an error in reset_password_token attribute.

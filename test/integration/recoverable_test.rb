@@ -147,7 +147,7 @@ class PasswordTest < ActionController::IntegrationTest
     reset_password :reset_password_token => user.reload.reset_password_token
 
     assert_current_url '/'
-    assert_contain 'Your password was changed successfully.'
+    assert_contain 'Your password was changed successfully. You are now signed in.'
     assert user.reload.valid_password?('987654321')
   end
 
@@ -166,7 +166,7 @@ class PasswordTest < ActionController::IntegrationTest
     assert user.reload.valid_password?('987654321')
   end
 
-  test 'sign in user automatically after changing it\'s password' do
+  test 'sign in user automatically after changing its password' do
     user = create_user
     request_forgot_password
     reset_password :reset_password_token => user.reload.reset_password_token
@@ -174,13 +174,24 @@ class PasswordTest < ActionController::IntegrationTest
     assert warden.authenticated?(:user)
   end
 
-  test 'does not sign in user automatically after changing it\'s password if it\'s not active' do
+  test 'does not sign in user automatically after changing its password if it\'s locked' do
+    user = create_user(:locked => true)
+    request_forgot_password
+    reset_password :reset_password_token => user.reload.reset_password_token
+
+    assert_contain 'Your password was changed successfully.'
+    assert_not_contain 'You are now signed in.'
+    assert_equal new_user_session_path, @request.path
+    assert !warden.authenticated?(:user)
+  end
+
+  test 'sign in user automatically and confirm after changing its password if it\'s not confirmed' do
     user = create_user(:confirm => false)
     request_forgot_password
     reset_password :reset_password_token => user.reload.reset_password_token
 
-    assert_equal new_user_session_path, @request.path
-    assert !warden.authenticated?(:user)
+    assert warden.authenticated?(:user)
+    assert user.reload.confirmed?
   end
 
   test 'reset password request with valid E-Mail in XML format should return valid response' do

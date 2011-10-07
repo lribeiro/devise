@@ -17,9 +17,9 @@ class Devise::RegistrationsController < ApplicationController
       if resource.active_for_authentication?
         set_flash_message :notice, :signed_up if is_navigational_format?
         sign_in(resource_name, resource)
-        respond_with resource, :location => redirect_location(resource_name, resource)
+        respond_with resource, :location => after_sign_up_path_for(resource)
       else
-        set_flash_message :notice, :inactive_signed_up, :reason => resource.inactive_message.to_s if is_navigational_format?
+        set_flash_message :notice, :inactive_signed_up, :reason => inactive_reason(resource) if is_navigational_format?
         expire_session_data_after_sign_in!
         respond_with resource, :location => after_inactive_sign_up_path_for(resource)
       end
@@ -83,9 +83,10 @@ class Devise::RegistrationsController < ApplicationController
       after_sign_in_path_for(resource)
     end
 
-    # Overwrite redirect_for_sign_in so it takes uses after_sign_up_path_for.
-    def redirect_location(scope, resource) #:nodoc:
-      stored_location_for(scope) || after_sign_up_path_for(resource)
+    # Returns the inactive reason translated.
+    def inactive_reason(resource)
+      reason = resource.inactive_message.to_s
+      I18n.t("devise.registrations.reasons.#{reason}", :default => reason)
     end
 
     # The path used after sign up for inactive accounts. You need to overwrite
@@ -97,18 +98,12 @@ class Devise::RegistrationsController < ApplicationController
     # The default url to be used after updating a resource. You need to overwrite
     # this method in your own RegistrationsController.
     def after_update_path_for(resource)
-      if defined?(super)
-        ActiveSupport::Deprecation.warn "Defining after_update_path_for in ApplicationController " <<
-          "is deprecated. Please add a RegistrationsController to your application and define it there."
-        super
-      else
-        after_sign_in_path_for(resource)
-      end
+      signed_in_root_path(resource)
     end
 
     # Authenticates the current scope and gets the current resource from the session.
     def authenticate_scope!
-      send(:"authenticate_#{resource_name}!", true)
+      send(:"authenticate_#{resource_name}!", :force => true)
       self.resource = send(:"current_#{resource_name}")
     end
 end
