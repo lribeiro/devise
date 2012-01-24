@@ -1,7 +1,6 @@
 require 'test_helper'
 
-class MyController < ApplicationController
-  include Devise::Controllers::InternalHelpers
+class MyController < DeviseController
 end
 
 class HelpersTest < ActionController::TestCase
@@ -45,10 +44,12 @@ class HelpersTest < ActionController::TestCase
     @controller.send :require_no_authentication
   end
 
-  test 'require no authentication skips if no inputs are available' do
+  test 'require no authentication only checks if already authenticated if no inputs strategies are available' do
     Devise.mappings[:user].expects(:no_input_strategies).returns([])
     @mock_warden.expects(:authenticate?).never
-    @controller.expects(:redirect_to).never
+    @mock_warden.expects(:authenticated?).with(:user).once.returns(true)
+    @mock_warden.expects(:user).with(:user).returns(User.new)
+    @controller.expects(:redirect_to).with(root_path)
     @controller.send :require_no_authentication
   end
 

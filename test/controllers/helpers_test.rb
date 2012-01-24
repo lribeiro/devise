@@ -128,6 +128,26 @@ class ControllerAuthenticatableTest < ActionController::TestCase
     @controller.sign_in(user, :bypass => true)
   end
 
+  test 'sign out clears up any signed in user from all scopes' do
+    user = User.new
+    @mock_warden.expects(:user).times(Devise.mappings.size)
+    @mock_warden.expects(:logout).with().returns(true)
+    @controller.instance_variable_set(:@current_user, user)
+    @controller.instance_variable_set(:@current_admin, user)
+    @controller.sign_out
+    assert_equal nil, @controller.instance_variable_get(:@current_user)
+    assert_equal nil, @controller.instance_variable_get(:@current_admin)
+  end
+
+  test 'sign out clears up any signed in user by scope' do
+    user = User.new
+    @mock_warden.expects(:user).with(:user).returns(user)
+    @mock_warden.expects(:logout).with(:user).returns(true)
+    @controller.instance_variable_set(:@current_user, user)
+    @controller.sign_out(:user)
+    assert_equal nil, @controller.instance_variable_get(:@current_user)
+  end
+  
   test 'sign out proxy to logout on warden' do
     @mock_warden.expects(:user).with(:user).returns(true)
     @mock_warden.expects(:logout).with(:user).returns(true)

@@ -12,9 +12,7 @@ Rails.application.routes.draw do
   resources :admins, :only => [:index]
 
   # Users scope
-  devise_for :users, :controllers => { :omniauth_callbacks => "users/omniauth_callbacks" } do
-    match "/devise_for/sign_in", :to => "devise/sessions#new"
-  end
+  devise_for :users, :controllers => { :omniauth_callbacks => "users/omniauth_callbacks" }
 
   as :user do
     match "/as/sign_in", :to => "devise/sessions#new"
@@ -46,17 +44,17 @@ Rails.application.routes.draw do
 
   # Routes for constraints testing
   devise_for :headquarters_admin, :class_name => "Admin", :path => "headquarters", :constraints => {:host => /192\.168\.1\.\d\d\d/}
-  
+
   constraints(:host => /192\.168\.1\.\d\d\d/) do
     devise_for :homebase_admin, :class_name => "Admin", :path => "homebase"
   end
 
   devise_for :skip_admin, :class_name => "Admin", :skip => :all
-  
+
   # Routes for format=false testing
   devise_for :htmlonly_admin, :class_name => "Admin", :skip => [:confirmations, :unlocks], :path => "htmlonly_admin", :format => false, :skip_helpers => [:confirmations, :unlocks]
   devise_for :htmlonly_users, :class_name => "User", :only => [:confirmations, :unlocks], :path => "htmlonly_users", :format => false, :skip_helpers => true
-  
+
   # Other routes for routing_test.rb
   devise_for :reader, :class_name => "User", :only => :passwords
 
@@ -64,14 +62,14 @@ Rails.application.routes.draw do
     devise_for :accounts, :class_name => "Admin", :path_names => { :sign_in => "get_in" }
   end
 
-  scope ":locale" do
+  scope ":locale", :module => :invalid do
     devise_for :accounts, :singular => "manager", :class_name => "Admin",
       :path_names => {
         :sign_in => "login", :sign_out => "logout",
         :password => "secret", :confirmation => "verification",
         :unlock => "unblock", :sign_up => "register",
         :registration => "management", :cancel => "giveup"
-      }
+      }, :failure_app => lambda { |env| [404, {"Content-Type" => "text/plain"}, ["Oops, not found"]] }, :module => :devise
   end
 
   namespace :sign_out_via, :module => "devise" do

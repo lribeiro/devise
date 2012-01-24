@@ -3,7 +3,11 @@ module Devise
     include Rails.application.routes.url_helpers
 
     def self.default_url_options(*args)
-      ApplicationController.default_url_options(*args)
+      if defined?(ApplicationController)
+        ApplicationController.default_url_options(*args)
+      else
+        {}
+      end
     end
 
     def initialize(env, scope)
@@ -12,7 +16,8 @@ module Devise
     end
 
     def signing_out?
-      @current_path == send("destroy_#{@scope}_session_path")
+      route = "destroy_#{@scope}_session_path"
+      respond_to?(route) && @current_path == send(route)
     end
   end
 end

@@ -131,7 +131,7 @@ class AuthenticationSanityTest < ActionController::IntegrationTest
     end
   end
 
-  test 'signed in user should not see join page' do
+  test 'signed in user should not see unauthenticated page' do
     sign_in_as_user
     assert warden.authenticated?(:user)
     assert_not warden.authenticated?(:admin)
@@ -141,7 +141,7 @@ class AuthenticationSanityTest < ActionController::IntegrationTest
     end
   end
 
-  test 'not signed in should see join page' do
+  test 'not signed in users should see unautheticated page' do
     get join_path
 
     assert_response :success
@@ -199,6 +199,12 @@ class AuthenticationSanityTest < ActionController::IntegrationTest
 
     get root_path
     assert_not_contain 'Signed out successfully'
+  end
+
+  test 'scope uses custom failure app' do
+    put "/en/accounts/management"
+    assert_equal "Oops, not found", response.body
+    assert_equal 404, response.status
   end
 end
 
@@ -312,7 +318,7 @@ class AuthenticationSessionTest < ActionController::IntegrationTest
   end
 end
 
-class AuthenticationWithScopesTest < ActionController::IntegrationTest
+class AuthenticationWithScopedViewsTest < ActionController::IntegrationTest
   test 'renders the scoped view if turned on and view is available' do
     swap Devise, :scoped_views => true do
       assert_raise Webrat::NotFoundError do
@@ -401,7 +407,10 @@ class AuthenticationOthersTest < ActionController::IntegrationTest
 
   test 'sign in stub in xml format' do
     get new_user_session_path(:format => 'xml')
-    assert_equal "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<user>\n  <email></email>\n  <password nil=\"true\"></password>\n</user>\n", response.body
+    assert_match '<?xml version="1.0" encoding="UTF-8"?>', response.body
+    assert_match /<user>.*<\/user>/m, response.body
+    assert_match '<email></email>', response.body
+    assert_match '<password nil="true"></password>', response.body
   end
 
   test 'sign in stub in json format' do
@@ -422,12 +431,6 @@ class AuthenticationOthersTest < ActionController::IntegrationTest
 
   test 'uses the mapping from router' do
     sign_in_as_user :visit => "/as/sign_in"
-    assert warden.authenticated?(:user)
-    assert_not warden.authenticated?(:admin)
-  end
-
-  test 'uses the mapping from nested devise_for call' do
-    sign_in_as_user :visit => "/devise_for/sign_in"
     assert warden.authenticated?(:user)
     assert_not warden.authenticated?(:admin)
   end

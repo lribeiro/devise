@@ -25,7 +25,7 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
   end
 
   test 'authenticate with valid authentication token key but does not store if stateless' do
-    swap Devise, :token_authentication_key => :secret_token, :stateless_token => true do
+    swap Devise, :token_authentication_key => :secret_token, :skip_session_storage => [:token_auth] do
       sign_in_as_new_user_with_token
       assert warden.authenticated?(:user)
 
@@ -88,7 +88,7 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
   end
 
   test 'authenticate with valid authentication token key and do not store if stateless and timeoutable are enabled' do
-    swap Devise, :token_authentication_key => :secret_token, :stateless_token => true, :timeout_in => (0.1).second do
+    swap Devise, :token_authentication_key => :secret_token, :skip_session_storage => [:token_auth], :timeout_in => (0.1).second do
       user = sign_in_as_new_user_with_token
       assert warden.authenticated?(:user)
 
@@ -112,7 +112,7 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
 
       assert_not_equal user1, user2
       visit users_path(Devise.token_authentication_key.to_s + '[$ne]' => user1.authentication_token)
-      assert_nil warden.user(:user) 
+      assert_nil warden.user(:user)
     end
   end
 
@@ -125,7 +125,7 @@ class TokenAuthenticationTest < ActionController::IntegrationTest
       options[:auth_token]     ||= user.authentication_token
 
       if options[:http_auth]
-        header = "Basic #{ActiveSupport::Base64.encode64("#{VALID_AUTHENTICATION_TOKEN}:X")}"
+        header = "Basic #{Base64.encode64("#{VALID_AUTHENTICATION_TOKEN}:X")}"
         get users_path(:format => :xml), {}, "HTTP_AUTHORIZATION" => header
       else
         visit users_path(options[:auth_token_key].to_sym => options[:auth_token])

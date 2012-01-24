@@ -6,7 +6,7 @@ class LockTest < ActionController::IntegrationTest
     visit user_unlock_path(:unlock_token => unlock_token)
   end
 
-  test 'user should be able to request a new unlock token' do
+  def send_unlock_request
     user = create_user(:locked => true)
     ActionMailer::Base.deliveries.clear
 
@@ -15,10 +15,23 @@ class LockTest < ActionController::IntegrationTest
 
     fill_in 'email', :with => user.email
     click_button 'Resend unlock instructions'
+  end
+
+  test 'user should be able to request a new unlock token' do
+    send_unlock_request
 
     assert_template 'sessions/new'
     assert_contain 'You will receive an email with instructions about how to unlock your account in a few minutes'
     assert_equal 1, ActionMailer::Base.deliveries.size
+    assert_equal ['please-change-me@config-initializers-devise.com'], ActionMailer::Base.deliveries.first.from
+  end
+
+  test 'user should receive the instructions from a custom mailer' do
+    User.any_instance.stubs(:devise_mailer).returns(Users::Mailer)
+
+    send_unlock_request
+
+    assert_equal ['custom@example.com'], ActionMailer::Base.deliveries.first.from
   end
 
   test 'unlocked user should not be able to request a unlock token' do
@@ -67,22 +80,15 @@ class LockTest < ActionController::IntegrationTest
 
     visit_user_unlock_with_token(user.unlock_token)
 
-    assert_current_url '/'
-    assert_contain 'Your account was successfully unlocked.'
+    assert_current_url "/users/sign_in"
+    assert_contain 'Your account has been unlocked successfully. Please sign in to continue.'
 
     assert_not user.reload.access_locked?
   end
 
-  test "sign in user automatically after unlocking its account" do
+  test "redirect user to sign in page after unlocking its account" do
     user = create_user(:locked => true)
     visit_user_unlock_with_token(user.unlock_token)
-    assert warden.authenticated?(:user)
-  end
-
-  test "user should not be able to sign in when locked" do
-    user = sign_in_as_user(:locked => true)
-    assert_template 'sessions/new'
-    assert_contain 'Your account is locked.'
     assert_not warden.authenticated?(:user)
   end
 
@@ -100,10 +106,29 @@ class LockTest < ActionController::IntegrationTest
 
   test 'error message is configurable by resource name' do
     store_translations :en, :devise => {
-      :failure => { :user => { :locked => "You are locked!" } }
+        :failure => {:user => {:locked => "You are locked!"}}
     } do
-      user = sign_in_as_user(:locked => true)
-      assert_contain 'You are locked!'
+
+      user = create_user(:locked => true)
+      user.failed_attempts = User.maximum_attempts + 1
+      user.save!
+
+      sign_in_as_user(:password => "invalid")
+      assert_contain "You are locked!"
+    end
+  end
+
+  test "user should not be able to sign in when locked" do
+    store_translations :en, :devise => {
+        :failure => {:user => {:locked => "You are locked!"}}
+    } do
+
+      user = create_user(:locked => true)
+      user.failed_attempts = User.maximum_attempts + 1
+      user.save!
+
+      sign_in_as_user(:password => "123456")
+      assert_contain "You are locked!"
     end
   end
 
@@ -144,7 +169,7 @@ class LockTest < ActionController::IntegrationTest
 
   test "when using json to ask a unlock request, should not return the user" do
     user = create_user(:locked => true)
-    post  user_unlock_path(:format => "json", :user => {:email => user.email})
+    post user_unlock_path(:format => "json", :user => {:email => user.email})
     assert_response :success
     assert_equal response.body, {}.to_json
   end
@@ -159,8 +184,7 @@ class LockTest < ActionController::IntegrationTest
       fill_in 'email', :with => user.email
       click_button 'Resend unlock instructions'
 
-      assert_current_url "/users/unlock"
-
+      assert_current_url "/users/sign_in"
       assert_contain "If your account exists, you will receive an email with instructions about how to unlock it in a few minutes."
     end
   end
@@ -175,8 +199,7 @@ class LockTest < ActionController::IntegrationTest
       fill_in 'email', :with => user.email
       click_button 'Resend unlock instructions'
 
-      assert_current_url "/users/unlock"
-
+      assert_current_url "/users/sign_in"
       assert_contain "If your account exists, you will receive an email with instructions about how to unlock it in a few minutes."
     end
   end
@@ -191,7 +214,7 @@ class LockTest < ActionController::IntegrationTest
 
       assert_not_contain "1 error prohibited this user from being saved:"
       assert_not_contain "Email not found"
-      assert_current_url "/users/unlock"
+      assert_current_url "/users/sign_in"
 
       assert_contain "If your account exists, you will receive an email with instructions about how to unlock it in a few minutes."
 
