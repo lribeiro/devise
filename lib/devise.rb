@@ -10,7 +10,6 @@ module Devise
   autoload :FailureApp,  'devise/failure_app'
   autoload :OmniAuth,    'devise/omniauth'
   autoload :ParamFilter, 'devise/param_filter'
-  autoload :PathChecker, 'devise/path_checker'
   autoload :Schema,      'devise/schema'
   autoload :TestHelpers, 'devise/test_helpers'
 
@@ -63,8 +62,8 @@ module Devise
   }
 
   # Custom domain for cookies. Not set by default
-  mattr_accessor :cookie_options
-  @@cookie_options = {}
+  mattr_accessor :rememberable_options
+  @@rememberable_options = {}
 
   # The number of times to encrypt password.
   mattr_accessor :stretches
@@ -221,7 +220,7 @@ module Devise
   # to :main_app. Should be overriden by engines in order
   # to provide custom routes.
   mattr_accessor :router_name
-  @@router_name = :main_app
+  @@router_name = nil
 
   # DEPRECATED CONFIG
 
@@ -242,6 +241,11 @@ module Devise
   def self.confirm_within=(value)
     warn "\n[DEVISE] Devise.confirm_within= is deprecated. Please set Devise.allow_unconfirmed_access_for= instead.\n"
     Devise.allow_unconfirmed_access_for = value
+  end
+
+  def self.cookie_options=(value)
+    warn "\n[DEVISE] Devise.cookie_options= is deprecated. Please set Devise.rememberable_options= instead.\n"
+    Devise.rememberable_options = value
   end
 
   def self.stateless_token=(value)
@@ -297,6 +301,10 @@ module Devise
     else
       ActiveSupport::Dependencies.ref(arg)
     end
+  end
+
+  def self.available_router_name
+    router_name || :main_app
   end
 
   def self.omniauth_providers

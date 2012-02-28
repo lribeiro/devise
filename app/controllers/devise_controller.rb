@@ -5,7 +5,7 @@ class DeviseController < Devise.parent_controller.constantize
   helper DeviseHelper
 
   helpers = %w(resource scope_name resource_name signed_in_resource
-               resource_class devise_mapping devise_controller?)
+               resource_class devise_mapping)
   hide_action *helpers
   helper_method *helpers
 
@@ -36,11 +36,6 @@ class DeviseController < Devise.parent_controller.constantize
   # Attempt to find the mapped route for devise based on request path
   def devise_mapping
     @devise_mapping ||= request.env["devise.mapping"]
-  end
-
-  # Overwrites devise_controller? to return true
-  def devise_controller?
-    true
   end
 
   protected
@@ -136,6 +131,7 @@ MESSAGE
     options[:scope] = "devise.#{controller_name}"
     options[:default] = Array(options[:default]).unshift(kind.to_sym)
     options[:resource_name] = resource_name
+    options = devise_i18n_options(options) if respond_to?(:devise_i18n_options, true)
     message = I18n.t("#{resource_name}.#{kind}", options)
     flash[key] = message if message.present?
   end
@@ -160,7 +156,7 @@ MESSAGE
 
   # Override prefixes to consider the scoped view.
   def _prefixes #:nodoc:
-    @_prefixes ||= if self.class.scoped_views?
+    @_prefixes ||= if self.class.scoped_views? && devise_mapping
       super.unshift("#{devise_mapping.scoped_path}/#{controller_name}")
     else
       super

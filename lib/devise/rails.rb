@@ -55,9 +55,14 @@ module Devise
       unless defined?(Rails::Generators)
         if Devise.case_insensitive_keys == false
           warn "\n[DEVISE] Devise.case_insensitive_keys is false which is no longer " \
-            "supported. If you want to continue running on this mode, please ensure " \
-            "you are not using validatable (you can copy the validations directly to your model) " \
-            "and set case_insensitive_keys to an empty array.\n"
+            "supported. Recent Devise versions automatically downcase the e-mail before " \
+            "saving it to the database but your app isn't using this feature. You can solve " \
+            "this issue by either:\n\n" \
+            "1) Setting config.case_insensitive_keys = [:email] in your Devise initializer and " \
+            "running a migration that will downcase all emails already in the database;\n\n" \
+            "2) Setting config.case_insensitive_keys = [] (so nothing will be downcased) and " \
+            "making sure you are not using Devise :validatable (since validatable assumes case" \
+            "insensitivity)\n"
         end
 
         if Devise.apply_schema && defined?(Mongoid)
@@ -82,14 +87,23 @@ module Devise
       end
 
       config.after_initialize do
+        example = <<-YAML
+en:
+  devise:
+    registrations:
+      signed_up_but_unconfirmed: 'A message with a confirmation link has been sent to your email address. Please open the link to activate your account.'
+      signed_up_but_inactive: 'You have signed up successfully. However, we could not sign you in because your account is not yet activated.'
+      signed_up_but_locked: 'You have signed up successfully. However, we could not sign you in because your account is locked.'
+        YAML
+
         if I18n.t(:"devise.registrations.reasons", :default => {}).present?
           warn "\n[DEVISE] devise.registrations.reasons in yml files is deprecated, " \
-            "please use devise.registrations.signed_up_but_REASON instead.\n"
+            "please use devise.registrations.signed_up_but_REASON instead. The default values are:\n\n#{example}\n"
         end
 
         if I18n.t(:"devise.registrations.inactive_signed_up", :default => "").present?
           warn "\n[DEVISE] devise.registrations.inactive_signed_up in yml files is deprecated, " \
-            "please use devise.registrations.signed_up_but_inactive instead.\n"
+            "please use devise.registrations.signed_up_but_REASON instead. The default values are:\n\n#{example}\n"
         end
       end
     end

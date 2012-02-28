@@ -1,15 +1,27 @@
+require "active_support/core_ext/object/try"
+
 module ActionDispatch::Routing
   class RouteSet #:nodoc:
     # Ensure Devise modules are included only after loading routes, because we
     # need devise_for mappings already declared to create filters and helpers.
     def finalize_with_devise!
-      finalize_without_devise!
+      result = finalize_without_devise!
 
       @devise_finalized ||= begin
+        if Devise.router_name.nil? && defined?(@devise_finalized) && self != Rails.application.try(:routes)
+          warn "[DEVISE] We have detected that you are using devise_for inside engine routes. " \
+            "In this case, you probably want to set Devise.router_name = MOUNT_POINT, where "   \
+            "MOUNT_POINT is a symbol representing where this engine will be mounted at. For "   \
+            "now Devise will default the mount point to :main_app. You can explicitly set it"   \
+            " to :main_app as well in case you want to keep the current behavior."
+        end
+
         Devise.configure_warden!
         Devise.regenerate_helpers!
         true
       end
+
+      result
     end
     alias_method_chain :finalize!, :devise
   end
@@ -186,7 +198,8 @@ module ActionDispatch::Routing
       options[:path_names]    = (@scope[:path_names] || {}).merge(options[:path_names] || {})
       options[:constraints]   = (@scope[:constraints] || {}).merge(options[:constraints] || {})
       options[:defaults]      = (@scope[:defaults] || {}).merge(options[:defaults] || {})
-      options[:options]       = (@scope[:options] || {}).merge({:format => false}) if options[:format] == false
+      options[:options]       = @scope[:options] || {}
+      options[:options][:format] = false if options[:format] == false
 
       resources.map!(&:to_sym)
 
@@ -210,7 +223,9 @@ module ActionDispatch::Routing
         devise_scope mapping.name do
           if block_given?
             ActiveSupport::Deprecation.warn "Passing a block to devise_for is deprecated. " \
-              "Please call devise_scope :#{mapping.name} do ... end with the block instead", caller
+              "Please remove the block from devise_for (only the block, the call to " \
+              "devise_for must still exist) and call devise_scope :#{mapping.name} do ... end " \
+              "with the block instead", caller
             yield
           end
 
@@ -363,7 +378,10 @@ module ActionDispatch::Routing
         path_prefix = "/#{mapping.path}/auth".squeeze("/")
 
         if ::OmniAuth.config.path_prefix && ::OmniAuth.config.path_prefix != path_prefix
-          raise "You can only add :omniauthable behavior to one Devise model"
+          raise "Wrong OmniAuth configuration. If you are getting this exception, it means that either:\n\n" \
+            "1) You are manually setting OmniAuth.config.path_prefix and it doesn't match the Devise one\n" \
+            "2) You are setting :omniauthable in more than one model\n" \
+            "3) You changed your Devise routes/OmniAuth setting and haven't restarted your server"
         else
           ::OmniAuth.config.path_prefix = path_prefix
         end
