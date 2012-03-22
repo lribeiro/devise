@@ -1,3 +1,5 @@
+require "devise/hooks/lockable"
+
 module Devise
   module Models
     # Handles blocking a user access after a certain number of attempts.
@@ -23,7 +25,12 @@ module Devise
       delegate :lock_strategy_enabled?, :unlock_strategy_enabled?, :to => "self.class"
 
       def self.required_fields(klass)
-        [:failed_attempts, :unlock_at, :unlock_token]
+        attributes = []
+        attributes << :failed_attempts if klass.lock_strategy_enabled?(:failed_attempts)
+        attributes << :unlock_at if klass.unlock_strategy_enabled?(:time)
+        attributes << :unlock_token if klass.unlock_strategy_enabled?(:email)
+
+        attributes
       end
 
       # Lock a user setting its locked_at to actual time.
@@ -38,7 +45,7 @@ module Devise
         save(:validate => false)
       end
 
-      # Unlock a user by cleaning locket_at and failed_attempts.
+      # Unlock a user by cleaning locked_at and failed_attempts.
       def unlock_access!
         self.locked_at = nil
         self.failed_attempts = 0 if respond_to?(:failed_attempts=)
@@ -84,19 +91,24 @@ module Devise
         unlock_access! if lock_expired?
 
         if super && !access_locked?
-          self.failed_attempts = 0
-          save(:validate => false)
           true
         else
           self.failed_attempts ||= 0
           self.failed_attempts += 1
           if attempts_exceeded?
             lock_access! unless access_locked?
-            return :locked
           else
             save(:validate => false)
           end
           false
+        end
+      end
+
+      def unauthenticated_message
+        if lock_strategy_enabled?(:failed_attempts) && attempts_exceeded?
+          :locked
+        else
+          super
         end
       end
 
@@ -137,9 +149,9 @@ module Devise
         # with an email not found error.
         # Options must contain the user email
         def send_unlock_instructions(attributes={})
-         lockable = find_or_initialize_with_errors(unlock_keys, attributes, :not_found)
-         lockable.resend_unlock_token if lockable.persisted?
-         lockable
+          lockable = find_or_initialize_with_errors(unlock_keys, attributes, :not_found)
+          lockable.resend_unlock_token if lockable.persisted?
+          lockable
         end
 
         # Find a user by its unlock token and try to unlock it.
